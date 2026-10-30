@@ -11,7 +11,9 @@ extends RefCounted
 ## Usage (dans une fonction async, [host] dans l'arbre, rendu actif) :
 ##   var baked: CcCatalog = await CcBaker.bake(look, catalog, self, "user://characters/hero")
 ##   sprite.catalog = baked
-##   sprite.look = CcBaker.baked_look()
+##   sprite.look = CcBaker.baked_look(look)
+## La taille (look.size) n'est pas cuite dans la planche : baked_look() la
+## reprend et CcSprite l'applique à l'affichage.
 
 const PART: String = "baked"
 const ATLAS_WIDTH: int = 1024
@@ -122,8 +124,10 @@ static func bake(look: CcLook, catalog: CcCatalog, host: Node, out_dir: String, 
 	return result
 
 
-## Apparence qui montre la planche fusionnée.
-static func baked_look() -> CcLook:
+## Apparence qui montre la planche fusionnée, à la taille de [param source].
+static func baked_look(source: CcLook = null) -> CcLook:
 	var look: CcLook = CcLook.new()
 	look.parts = {"body": PART}
+	if source != null:
+		look.size = source.size
 	return look

@@ -1,3 +1,4 @@
+@tool
 extends Control
 
 ## Écran de création de personnage, pour le joueur (en jeu) et pour le
@@ -6,6 +7,8 @@ extends Control
 ## pièces et couleur), pied (Cancel, Confirm).
 ## Le jeu instancie cc_creator.tscn, peut lui donner [look] à modifier, et
 ## écoute confirmed(look) / cancelled.
+## [embedded] : intégré à l'onglet Characters de l'éditeur : modifie [look]
+## directement (pas de copie), sans pied ; set_look() change de fiche.
 
 const Theme_ = preload("res://addons/character_creator/creator/cc_theme.gd")
 const T = preload("res://addons/character_creator/i18n/t.gd")
@@ -51,8 +54,11 @@ const THUMB: int = 64
 ## Dossier des personnages prédéfinis (bouton Save preset, seulement quand
 ## le jeu est lancé depuis l'éditeur) ; vide : pas de bouton.
 @export_dir var preset_dir: String = ""
+## Intégré à l'onglet Characters (voir en tête).
+var embedded: bool = false
 
 var _look: CcLook
+var _title: Label
 var _slot: String = "body"
 var _stage: Stage
 var _slot_buttons: Dictionary = {}  # emplacement -> Button
@@ -62,6 +68,8 @@ var _parts_grid: GridContainer
 var _part_name: Label
 var _swatches: GridContainer
 var _custom_color: ColorPickerButton
+var _height_slider: HSlider
+var _width_slider: HSlider
 var _anim_picker: OptionButton
 var _direction_label: Label
 var _play_button: Button
@@ -70,13 +78,17 @@ var _preset_name: LineEdit
 
 
 func _ready() -> void:
+	# Scène ouverte dans l'éditeur : ne rien construire (ce serait enregistré
+	# dans la scène).
+	if Engine.is_editor_hint() and not embedded:
+		return
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	theme = Theme_.build()
 	if catalog == null:
 		var path: String = String(ProjectSettings.get_setting("character_creator/catalog_path", DEFAULT_CATALOG))
 		if ResourceLoader.exists(path):
 			catalog = load(path) as CcCatalog
-	_look = look.duplicate_look() if look != null else CcLook.default_look()
+	_look = look if embedded and look != null else (look.duplicate_look() if look != null else CcLook.default_look())
 	_build()
 	if catalog == null:
 		return
@@ -88,7 +100,24 @@ func _ready() -> void:
 	_anim_picker.select(maxi(0, catalog.anims.find("Idle")))
 	_select_slot("body")
 	_refresh_slot_values()
+	_refresh_size()
 	_cascade()
+
+
+## Onglet Characters : montre et modifie une autre apparence (sans copie).
+func set_look(new_look: CcLook, title: String = "") -> void:
+	if _look != null and _look.changed.is_connected(_on_look_changed):
+		_look.changed.disconnect(_on_look_changed)
+	_look = new_look
+	if _title != null and title != "":
+		_title.text = title
+	if catalog == null or _stage == null:
+		return
+	_look.changed.connect(_on_look_changed)
+	_stage.sprite.look = _look
+	_select_slot(_slot)
+	_refresh_slot_values()
+	_refresh_size()
 
 
 # --- Construction ---
@@ -107,7 +136,8 @@ func _build() -> void:
 		page.add_child(_build_empty())
 	else:
 		page.add_child(_build_body())
-	page.add_child(_build_footer())
+	if not embedded:
+		page.add_child(_build_footer())
 
 
 func _build_header() -> Control:
@@ -118,11 +148,11 @@ func _build_header() -> Control:
 	var titles: VBoxContainer = VBoxContainer.new()
 	titles.add_theme_constant_override("separation", 0)
 	titles.add_child(Theme_.label(T.t("CHARACTER"), Theme_.KICKER))
-	var title: Label = Label.new()
-	title.text = T.t("Appearance")
-	title.add_theme_font_override("font", Theme_.font(&"condensed"))
-	title.add_theme_font_size_override("font_size", Theme_.size("title") + 4)
-	titles.add_child(title)
+	_title = Label.new()
+	_title.text = T.t("Appearance")
+	_title.add_theme_font_override("font", Theme_.font(&"condensed"))
+	_title.add_theme_font_size_override("font_size", Theme_.size("title") + 4)
+	titles.add_child(_title)
 	row.add_child(titles)
 	row.add_child(_spacer())
 	var group: HBoxContainer = HBoxContainer.new()
@@ -205,11 +235,26 @@ func _build_body() -> Control:
 	_anim_picker = OptionButton.new()
 	_anim_picker.custom_minimum_size = Vector2(170, 36)
 	_anim_picker.tooltip_text = T.t("Animation")
+	# Noms d'animations du pack : ne pas les faire traduire par Godot.
+	_anim_picker.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	_anim_picker.add_theme_font_override("font", Theme_.font(&"mono"))
 	_anim_picker.item_selected.connect(_on_anim_selected)
 	bar_row.add_child(_anim_picker)
 	_play_button = _tool_button("Pause", "❚❚", T.t("Pause or play the animation"), _toggle_play)
 	bar_row.add_child(_play_button)
+	# Zoom (aussi à la molette et au pincement sur la scène).
+	bar_row.add_child(_gap(16))
+	bar_row.add_child(_tool_button("ZoomLess", "−", T.t("Zoom out"), _stage.step_zoom.bind(-1)))
+	var zoom_label: Label = Theme_.label("", Theme_.DIM)
+	zoom_label.add_theme_font_override("font", Theme_.font(&"mono"))
+	zoom_label.custom_minimum_size.x = 36
+	zoom_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	zoom_label.tooltip_text = T.t("Zoom (mouse wheel or pinch on the stage)")
+	zoom_label.mouse_filter = Control.MOUSE_FILTER_PASS
+	bar_row.add_child(zoom_label)
+	bar_row.add_child(_tool_button("ZoomMore", "+", T.t("Zoom in"), _stage.step_zoom.bind(1)))
+	_stage.zoom_changed.connect(func(level: int) -> void: zoom_label.text = "x%d" % level)
+	_stage.resized.connect(func() -> void: zoom_label.text = "x%d" % _stage.shown_zoom())
 	center.add_child(bar)
 	body.add_child(center)
 
@@ -253,6 +298,18 @@ func _build_body() -> Control:
 	_custom_color.color_changed.connect(func(value: Color) -> void: _look.set_color(_slot, Color(value, _look.color(_slot).a)))
 	custom_row.add_child(_custom_color)
 	right_box.add_child(custom_row)
+	# Taille de tout le personnage (pas d'un emplacement).
+	var size_head: HBoxContainer = HBoxContainer.new()
+	size_head.add_child(Theme_.label(T.t("SIZE"), Theme_.KICKER))
+	size_head.add_child(_spacer())
+	var size_reset: Button = _button(T.t("100 %"), T.t("Back to the pack size"), func() -> void: _look.size = Vector2.ONE)
+	size_reset.theme_type_variation = Theme_.TOOL
+	size_reset.add_theme_font_override("font", Theme_.font(&"mono"))
+	size_reset.custom_minimum_size.y = 24
+	size_head.add_child(size_reset)
+	right_box.add_child(size_head)
+	_height_slider = _size_row(right_box, T.t("Height"), 1)
+	_width_slider = _size_row(right_box, T.t("Width"), 0)
 	body.add_child(right)
 	return body
 
@@ -394,8 +451,49 @@ func _rebuild_swatches() -> void:
 	_custom_color.color = current
 
 
+# Ligne « légende, curseur, valeur » ; [axis] 0 largeur, 1 hauteur.
+func _size_row(parent: Container, caption: String, axis: int) -> HSlider:
+	var row: HBoxContainer = HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	var label: Label = Theme_.label(caption, Theme_.DIM)
+	label.custom_minimum_size.x = 64
+	row.add_child(label)
+	var slider: HSlider = HSlider.new()
+	slider.min_value = CcLook.SIZE_MIN
+	slider.max_value = CcLook.SIZE_MAX
+	slider.step = 0.05
+	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	slider.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	slider.custom_minimum_size.y = 24
+	slider.tooltip_text = T.t("Pixel art: sizes other than 50, 100 or 150 % give slightly uneven pixels in the game (x2)")
+	row.add_child(slider)
+	var value: Label = Theme_.label("100 %", Theme_.DIM)
+	value.add_theme_font_override("font", Theme_.font(&"mono"))
+	value.custom_minimum_size.x = 48
+	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	row.add_child(value)
+	slider.value_changed.connect(func(amount: float) -> void:
+		value.text = "%d %%" % roundi(amount * 100.0)
+		if not is_equal_approx(_look.size[axis], amount):
+			var resized: Vector2 = _look.size
+			resized[axis] = amount
+			_look.size = resized)
+	parent.add_child(row)
+	return slider
+
+
+func _refresh_size() -> void:
+	if _height_slider == null:
+		return
+	_height_slider.set_value_no_signal(_look.size.y)
+	_width_slider.set_value_no_signal(_look.size.x)
+	for slider in [_height_slider, _width_slider]:
+		slider.value_changed.emit(slider.value)
+
+
 func _on_look_changed() -> void:
 	_refresh_slot_values()
+	_refresh_size()
 	# Les vignettes prennent la teinte de l'emplacement.
 	for button in _parts_grid.get_children():
 		for holder in button.get_children():
@@ -459,7 +557,7 @@ func _reset() -> void:
 	var fresh: CcLook = CcLook.default_look()
 	_look.parts = fresh.parts
 	_look.colors = fresh.colors
-	_look.emit_changed()
+	_look.size = Vector2.ONE
 	_select_slot(_slot)
 	_stage.pop()
 

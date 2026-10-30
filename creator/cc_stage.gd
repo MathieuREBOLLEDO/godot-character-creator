@@ -1,16 +1,22 @@
+@tool
 extends Control
 
 ## Scène de l'écran de création : sol en losanges isométriques, vignettage
 ## et le personnage (CcSprite) à une échelle entière, les pieds au tiers
-## bas. Glisser horizontalement tourne le personnage.
+## bas. Glisser horizontalement tourne le personnage ; molette, pincement ou
+## set_zoom() changent l'échelle (entière : pixels nets).
 
 const Theme_ = preload("res://addons/character_creator/creator/cc_theme.gd")
 
 signal turned(step: int)
+signal zoom_changed(level: int)
 
 ## Largeur glissée pour tourner d'une direction.
 const DRAG_STEP: float = 48.0
+const ZOOM_MAX: int = 10
 
+## Échelle du personnage ; 0 : la plus grande qui tient dans la scène.
+var zoom: int = 0
 var sprite: CcSprite = CcSprite.new()
 var _drag_from: float = NAN
 var _vignette: GradientTexture2D
@@ -39,13 +45,35 @@ func pop() -> void:
 	tween.tween_property(sprite, "scale", base, 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
+## Échelle affichée (zoom, ou l'échelle automatique si zoom vaut 0).
+func shown_zoom() -> int:
+	if zoom > 0:
+		return zoom
+	var cell: float = 128.0 if sprite.catalog == null else float(sprite.catalog.cell_size)
+	return maxi(1, floori(minf(size.x, size.y) / cell))
+
+
+## [param level] 0 : automatique.
+func set_zoom(level: int) -> void:
+	zoom = clampi(level, 0, ZOOM_MAX)
+	_layout()
+	zoom_changed.emit(shown_zoom())
+
+
+func step_zoom(step: int) -> void:
+	set_zoom(clampi(shown_zoom() + step, 1, ZOOM_MAX))
+
+
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_RESIZED:
-		var cell: float = 128.0 if sprite.catalog == null else float(sprite.catalog.cell_size)
-		var zoom: int = maxi(1, floori(minf(size.x, size.y) / cell))
-		sprite.scale = Vector2(zoom, zoom)
-		sprite.position = Vector2(size.x * 0.5, size.y * 0.66)
-		queue_redraw()
+		_layout()
+
+
+func _layout() -> void:
+	var level: int = shown_zoom()
+	sprite.scale = Vector2(level, level)
+	sprite.position = Vector2(size.x * 0.5, size.y * 0.66)
+	queue_redraw()
 
 
 func _draw() -> void:
@@ -72,7 +100,12 @@ func _draw() -> void:
 
 
 func _gui_input(event: InputEvent) -> void:
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+	if event is InputEventMouseButton and event.pressed and event.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]:
+		step_zoom(1 if event.button_index == MOUSE_BUTTON_WHEEL_UP else -1)
+		accept_event()
+	elif event is InputEventMagnifyGesture and absf(event.factor - 1.0) > 0.08:
+		step_zoom(1 if event.factor > 1.0 else -1)
+	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		_drag_from = event.position.x if event.pressed else NAN
 	elif event is InputEventScreenTouch:
 		_drag_from = event.position.x if event.pressed else NAN

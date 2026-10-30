@@ -105,7 +105,10 @@ func _refresh() -> void:
 		layer.visible = true
 		layer.texture = catalog.texture(part, animation)
 		layer.region_rect = Rect2(rect)
-		layer.position = Vector2(catalog.frame_offset(data, direction, frame)) - catalog.pivot
+		# Taille de l'apparence autour des pieds (l'origine du nœud).
+		var stretch: Vector2 = look.size
+		layer.scale = stretch
+		layer.position = (Vector2(catalog.frame_offset(data, direction, frame)) - catalog.pivot) * stretch
 		layer.modulate = look.color(slot)
 		layer.material = _premultiplied() if catalog.premultiplied else null
 

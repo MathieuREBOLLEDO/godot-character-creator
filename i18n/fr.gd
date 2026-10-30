@@ -1,3 +1,4 @@
+@tool
 extends RefCounted
 
 ## Traductions françaises de l'écran de création : texte anglais (tel
@@ -52,6 +53,42 @@ const TEXTS: Dictionary = {
 	"COLOR": "COULEUR",
 	"Custom": "Autre",
 	"Pick any color": "Choisir n'importe quelle couleur",
+
+	"SIZE": "TAILLE",
+	"Back to the pack size": "Revenir à la taille du pack",
+	"Height": "Hauteur",
+	"Width": "Largeur",
+	"Pixel art: sizes other than 50, 100 or 150 % give slightly uneven pixels in the game (x2)": "Pixel art : une taille autre que 50, 100 ou 150 % donne des pixels un peu inégaux dans le jeu (x2)",
+	"Zoom out": "Dézoomer",
+	"Zoom in": "Zoomer",
+	"Zoom (mouse wheel or pinch on the stage)": "Zoom (molette ou pincement sur la scène)",
+
+	# --- Onglet Characters (éditeur) ---
+	"CHARACTERS": "PERSONNAGES",
+	"Reload the folders": "Relire les dossiers",
+	"Duplicate the selected character": "Dupliquer le personnage choisi",
+	"Rename the file (its id: maps and saves use it)": "Renommer le fichier (son identifiant : cartes et sauvegardes s'en servent)",
+	"Delete the selected character (moved to the trash)": "Supprimer le personnage choisi (mis à la corbeille)",
+	"Add an appearance": "Ajouter une apparence",
+	"Pick a character on the left, or press + to create one.": "Choisir un personnage à gauche, ou + pour en créer un.",
+	"New character in %s": "Nouveau personnage dans %s",
+	"empty: press +": "vide : appuyer sur +",
+	"Could not load %s": "Impossible de charger %s",
+	"No appearance: drawn with simple shapes in the game.": "Pas d'apparence : dessiné en formes simples dans le jeu.",
+	"This resource has no appearance.": "Cette ressource n'a pas d'apparence.",
+	"Save": "Enregistrer",
+	"Save the character (also saved when you pick another one)": "Enregistrer le personnage (aussi fait en changeant de personnage)",
+	"%s: unsaved changes": "%s : modifications non enregistrées",
+	"New character": "Nouveau personnage",
+	"Duplicate": "Dupliquer",
+	"Rename": "Renommer",
+	"file name, e.g. orc_chief": "nom du fichier, ex. chef_orc",
+	"Give it a name first.": "Donner d'abord un nom.",
+	"%s already exists.": "%s existe déjà.",
+	"Could not write %s (%s)": "Impossible d'écrire %s (%s)",
+	"Move %s to the trash?": "Mettre %s à la corbeille ?",
+	"Could not delete %s": "Impossible de supprimer %s",
+	"Moved %s to the trash": "%s mis à la corbeille",
 
 	# --- État vide ---
 	"NO CHARACTER PARTS": "AUCUNE PIÈCE DE PERSONNAGE",

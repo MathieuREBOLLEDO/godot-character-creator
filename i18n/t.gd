@@ -1,3 +1,4 @@
+@tool
 extends RefCounted
 
 ## Traduction des textes de l'écran de création. Les textes sont écrits en

@@ -79,6 +79,37 @@ libre). Random tire l'équipement et les couleurs ; Reset revient au
 personnage de départ. Textes en anglais et en français (suivent la langue
 du jeu, `i18n/`).
 
+Sur la scène : glisser pour tourner, molette ou pincement (ou − / + dans
+la barre) pour zoomer, toujours d'un nombre entier de fois.
+
+Taille (colonne de droite, sous la couleur) : hauteur et largeur de tout
+le personnage, de 50 à 150 % (`CcLook.size`, x = largeur, y = hauteur),
+autour des pieds. Pixel art : si l'échelle totale (taille x échelle du
+nœud) n'est pas entière, les pixels sont un peu inégaux (à l'échelle 2,
+seuls 50, 100 et 150 % restent parfaitement nets). La fusion (CcBaker) ne
+cuit pas la taille : `baked_look(look)` la reprend.
+
+### Onglet Characters (éditeur)
+
+Onglet à côté de 2D, 3D, Script : créer vite des personnages (classes,
+ennemis, PNJ...) rangés en `.tres`.
+
+- À gauche : les dossiers du réglage `character_creator/editor_folders`
+  (liste de dossiers ; par défaut `res://character_creator/presets`) et
+  leurs fiches. **+** crée une fiche dans un dossier ; Duplicate, Rename
+  (double-clic aussi), Delete (corbeille) sur la fiche choisie.
+- Au centre : son apparence (écran de création intégré).
+- À droite : l'Inspector de Godot montre ses autres champs (stats...).
+- **Save** enregistre ; un point signale les modifications en attente. La
+  fiche est aussi enregistrée en changeant de fiche ou d'onglet.
+
+Une fiche est un `CcLook`, ou toute ressource avec une propriété `look`
+(CcLook) : le jeu définit ses propres types. Une nouvelle fiche prend le
+type des fiches déjà présentes dans le dossier (CcLook s'il est vide),
+avec l'apparence de départ et `display_name` tiré du nom de fichier s'il
+existe. Sans apparence (monstre non humanoïde), bouton « Add an
+appearance ».
+
 ### Enregistrer le personnage du joueur
 
 `CcLook` passe dans un ConfigFile : `config.set_value("hero", "look",

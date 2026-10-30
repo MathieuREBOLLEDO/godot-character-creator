@@ -10,7 +10,12 @@ Première version : import du pack, CcSprite, écran de création, fusion
       (thread et barre de progression jamais lancés dans l'éditeur ouvert),
       écran de création au doigt sur mobile.
 
+- [x] Onglet Characters dans l'éditeur, zoom de la scène, bouton Save
+      (2026-10-30). À essayer à la main : Rename, Delete, Inspector.
+
 ## Décisions prises
+- 2026-10-30 : onglet générique (toute ressource avec « look ») ; les
+  stats restent dans l'Inspector de Godot plutôt qu'un formulaire maison.
 - 2026-10-30 : planches recadrées et serrées à l'import (511 -> 106 Mo,
   mémoire vidéo ~ / 10) plutôt que les planches du pack telles quelles.
 - 2026-10-30 : fusion par la carte graphique (SubViewport), couleurs

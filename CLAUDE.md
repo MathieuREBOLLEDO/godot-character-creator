@@ -38,7 +38,10 @@ de tâche, mettre PLAN.md à jour).
 - cc_catalog.gd, cc_look.gd, cc_sprite.gd, cc_baker.gd : le runtime.
 - importer/ : import du .unitypackage (cc_importer.gd) et ligne de
   commande (import_cli.gd).
-- creator/ : écran de création (cc_creator), scène (cc_stage), thème.
+- creator/ : écran de création (cc_creator ; embedded = intégré à
+  l'onglet), scène (cc_stage, zoom), thème.
+- editor/ : onglet Characters (cc_editor_tab.gd), fiches des dossiers de
+  character_creator/editor_folders.
 - i18n/ : traductions.
 
 ## Format du pack (v1.3)
@@ -53,6 +56,12 @@ de tâche, mettre PLAN.md à jour).
   `"G:\GameEngine\Godot 4.7.2\Godot_v4.7.2-stable_win64_console.exe" --headless --path "G:\Projects\Godot\DungeonTactics" --quit`
 - Import : importer/import_cli.gd (commande en tête du fichier).
 - Logique : un script SceneTree lancé avec `-s` (catalogue, CcLook,
-  CcSprite) passe en headless. La fusion et l'écran se vérifient dans une
+  CcSprite) passe en headless.
+- Onglet Characters : appel temporaire dans plugin._enter_tree
+  (`if OS.get_environment("CC_TEST") != "": load(".../zz_test_tmp.gd").run(self, _tab)`),
+  éditeur lancé en fenêtre, capture de get_base_control().get_viewport() ;
+  retirer l'appel et le script ensuite.
+- Le sous-module du jeu est un autre clone : copier les fichiers (robocopy
+  sans .git) pour tester, commiter ici, puis git pull dans le sous-module. La fusion et l'écran se vérifient dans une
   fenêtre (sans --headless) : capture avec
   `root.get_texture().get_image().save_png(...)`.

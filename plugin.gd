@@ -1,16 +1,22 @@
 @tool
 extends EditorPlugin
 
-## Réglage character_creator/catalog_path (où vit le catalogue importé) et
-## menu Projet > Outils > Import Character Creator pack : choisit le
+## Réglages character_creator/catalog_path (où vit le catalogue importé) et
+## character_creator/editor_folders (dossiers de fiches de l'onglet
+## Characters), onglet « Characters » (editor/cc_editor_tab.gd) et menu
+## Projet > Outils > Import Character Creator pack : choisit le
 ## .unitypackage (ou son dossier extrait) et lance l'import dans un thread,
 ## avec une barre de progression.
 
 const Importer = preload("res://addons/character_creator/importer/cc_importer.gd")
+const EditorTab = preload("res://addons/character_creator/editor/cc_editor_tab.gd")
 const SETTING: String = "character_creator/catalog_path"
 const DEFAULT_CATALOG: String = "res://character_creator/catalog.res"
+const SETTING_FOLDERS: String = "character_creator/editor_folders"
+const DEFAULT_FOLDERS: PackedStringArray = ["res://character_creator/presets"]
 const MENU: String = "Import Character Creator pack..."
 
+var _tab: EditorTab
 var _file_dialog: EditorFileDialog
 var _progress_dialog: AcceptDialog
 var _progress_bar: ProgressBar
@@ -23,16 +29,49 @@ func _enter_tree() -> void:
 		ProjectSettings.set_setting(SETTING, DEFAULT_CATALOG)
 	ProjectSettings.set_initial_value(SETTING, DEFAULT_CATALOG)
 	ProjectSettings.add_property_info({"name": SETTING, "type": TYPE_STRING, "hint": PROPERTY_HINT_FILE, "hint_string": "*.res"})
+	if not ProjectSettings.has_setting(SETTING_FOLDERS):
+		ProjectSettings.set_setting(SETTING_FOLDERS, DEFAULT_FOLDERS)
+	ProjectSettings.set_initial_value(SETTING_FOLDERS, DEFAULT_FOLDERS)
+	ProjectSettings.add_property_info({"name": SETTING_FOLDERS, "type": TYPE_PACKED_STRING_ARRAY, "hint": PROPERTY_HINT_TYPE_STRING, "hint_string": "%d/%d:" % [TYPE_STRING, PROPERTY_HINT_DIR]})
 	add_tool_menu_item(MENU, _open_dialog)
+	_tab = EditorTab.new()
+	_tab.editor_interface = get_editor_interface()
+	_tab.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	get_editor_interface().get_editor_main_screen().add_child(_tab)
+	_make_visible(false)
 
 
 func _exit_tree() -> void:
 	remove_tool_menu_item(MENU)
+	if _tab != null:
+		_tab.queue_free()
 	if _thread != null and _thread.is_started():
 		_thread.wait_to_finish()
 	for node in [_file_dialog, _progress_dialog]:
 		if node != null:
 			node.queue_free()
+
+
+func _has_main_screen() -> bool:
+	return true
+
+
+func _make_visible(visible: bool) -> void:
+	if _tab == null:
+		return
+	_tab.visible = visible
+	if visible:
+		_tab.on_shown()
+	else:
+		_tab.on_hidden()
+
+
+func _get_plugin_name() -> String:
+	return "Characters"
+
+
+func _get_plugin_icon() -> Texture2D:
+	return get_editor_interface().get_base_control().get_theme_icon(&"CharacterBody2D", &"EditorIcons")
 
 
 func _open_dialog() -> void:

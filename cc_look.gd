@@ -3,13 +3,24 @@ class_name CcLook
 extends Resource
 
 ## Apparence d'un personnage : la pièce et la couleur de chaque emplacement
-## (CcCatalog.SLOTS). Enregistrable en .tres (personnages du développeur) ou
-## en dictionnaire dans un ConfigFile (personnages du joueur, to_dict()).
+## (CcCatalog.SLOTS) et sa taille. Enregistrable en .tres (personnages du
+## développeur) ou en dictionnaire dans un ConfigFile (personnages du
+## joueur, to_dict()).
+
+const SIZE_MIN: float = 0.5
+const SIZE_MAX: float = 1.5
 
 ## Emplacement -> nom de pièce ; absent ou "" : rien.
 @export var parts: Dictionary = {}
 ## Emplacement -> teinte (multipliée, comme SpriteRenderer.color dans Unity).
 @export var colors: Dictionary = {}
+## Largeur (x) et hauteur (y) du personnage, 1 = taille du pack. Les pieds
+## restent en place. Pixel art : une échelle totale non entière (taille x
+## échelle du nœud) donne des pixels un peu inégaux.
+@export var size: Vector2 = Vector2.ONE:
+	set(value):
+		size = value.clamp(Vector2(SIZE_MIN, SIZE_MIN), Vector2(SIZE_MAX, SIZE_MAX))
+		emit_changed()
 
 
 static func default_look() -> CcLook:
@@ -48,11 +59,12 @@ func duplicate_look() -> CcLook:
 	var copy: CcLook = CcLook.new()
 	copy.parts = parts.duplicate()
 	copy.colors = colors.duplicate()
+	copy.size = size
 	return copy
 
 
 func to_dict() -> Dictionary:
-	return {"parts": parts.duplicate(), "colors": colors.duplicate()}
+	return {"parts": parts.duplicate(), "colors": colors.duplicate(), "size": size}
 
 
 static func from_dict(data: Dictionary) -> CcLook:
@@ -66,4 +78,7 @@ static func from_dict(data: Dictionary) -> CcLook:
 		for slot in stored_colors:
 			if stored_colors[slot] is Color:
 				look.colors[String(slot)] = stored_colors[slot]
+	var stored_size: Variant = data.get("size", Vector2.ONE)
+	if stored_size is Vector2:
+		look.size = stored_size
 	return look
