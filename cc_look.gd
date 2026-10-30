@@ -1,0 +1,69 @@
+@tool
+class_name CcLook
+extends Resource
+
+## Apparence d'un personnage : la pièce et la couleur de chaque emplacement
+## (CcCatalog.SLOTS). Enregistrable en .tres (personnages du développeur) ou
+## en dictionnaire dans un ConfigFile (personnages du joueur, to_dict()).
+
+## Emplacement -> nom de pièce ; absent ou "" : rien.
+@export var parts: Dictionary = {}
+## Emplacement -> teinte (multipliée, comme SpriteRenderer.color dans Unity).
+@export var colors: Dictionary = {}
+
+
+static func default_look() -> CcLook:
+	var look: CcLook = CcLook.new()
+	look.parts = {
+		"shadow": "Shadow", "body": "NakedBody", "head": "Head1",
+		"chest": "Chest1", "legs": "Legs1", "shoes": "Shoes1",
+	}
+	# Ombre à 70 % comme dans la scène d'exemple du pack.
+	look.colors = {"shadow": Color(1, 1, 1, 0.7)}
+	return look
+
+
+func part(slot: String) -> String:
+	return String(parts.get(slot, ""))
+
+
+func color(slot: String) -> Color:
+	return colors.get(slot, Color.WHITE)
+
+
+func set_part(slot: String, part_name: String) -> void:
+	if part_name == "":
+		parts.erase(slot)
+	else:
+		parts[slot] = part_name
+	emit_changed()
+
+
+func set_color(slot: String, value: Color) -> void:
+	colors[slot] = value
+	emit_changed()
+
+
+func duplicate_look() -> CcLook:
+	var copy: CcLook = CcLook.new()
+	copy.parts = parts.duplicate()
+	copy.colors = colors.duplicate()
+	return copy
+
+
+func to_dict() -> Dictionary:
+	return {"parts": parts.duplicate(), "colors": colors.duplicate()}
+
+
+static func from_dict(data: Dictionary) -> CcLook:
+	var look: CcLook = CcLook.new()
+	var stored_parts: Variant = data.get("parts", {})
+	var stored_colors: Variant = data.get("colors", {})
+	if stored_parts is Dictionary:
+		for slot in stored_parts:
+			look.parts[String(slot)] = String(stored_parts[slot])
+	if stored_colors is Dictionary:
+		for slot in stored_colors:
+			if stored_colors[slot] is Color:
+				look.colors[String(slot)] = stored_colors[slot]
+	return look
