@@ -9,6 +9,9 @@ extends Resource
 
 const SIZE_MIN: float = 0.5
 const SIZE_MAX: float = 1.5
+const OUTLINE_MAX: int = 3
+## Nombres d'images proposés (réduction d'images, comme l'outil Unity).
+const FRAME_CHOICES: Array[int] = [15, 14, 12, 10, 8, 6, 4]
 
 ## Emplacement -> nom de pièce ; absent ou "" : rien.
 @export var parts: Dictionary = {}
@@ -20,6 +23,22 @@ const SIZE_MAX: float = 1.5
 @export var size: Vector2 = Vector2.ONE:
 	set(value):
 		size = value.clamp(Vector2(SIZE_MIN, SIZE_MIN), Vector2(SIZE_MAX, SIZE_MAX))
+		emit_changed()
+## Contour autour de tout le personnage (pas de l'ombre), en pixels du pack ;
+## 0 : aucun.
+@export_range(0, 3) var outline_width: int = 0:
+	set(value):
+		outline_width = clampi(value, 0, OUTLINE_MAX)
+		emit_changed()
+@export var outline_color: Color = Color(0.05, 0.04, 0.06):
+	set(value):
+		outline_color = value
+		emit_changed()
+## Images jouées par animation (sur les 15 du pack, même durée) ; 0 :
+## toutes. Moins d'images : animation plus saccadée, style rétro.
+@export_range(0, 15) var frames: int = 0:
+	set(value):
+		frames = clampi(value, 0, 15)
 		emit_changed()
 
 
@@ -60,11 +79,22 @@ func duplicate_look() -> CcLook:
 	copy.parts = parts.duplicate()
 	copy.colors = colors.duplicate()
 	copy.size = size
+	copy.copy_style(self)
 	return copy
 
 
+## Reprend le contour et la réduction d'images de [param other].
+func copy_style(other: CcLook) -> void:
+	outline_width = other.outline_width
+	outline_color = other.outline_color
+	frames = other.frames
+
+
 func to_dict() -> Dictionary:
-	return {"parts": parts.duplicate(), "colors": colors.duplicate(), "size": size}
+	return {
+		"parts": parts.duplicate(), "colors": colors.duplicate(), "size": size,
+		"outline_width": outline_width, "outline_color": outline_color, "frames": frames,
+	}
 
 
 static func from_dict(data: Dictionary) -> CcLook:
@@ -81,4 +111,10 @@ static func from_dict(data: Dictionary) -> CcLook:
 	var stored_size: Variant = data.get("size", Vector2.ONE)
 	if stored_size is Vector2:
 		look.size = stored_size
+	if data.get("outline_width") is int:
+		look.outline_width = data["outline_width"]
+	if data.get("outline_color") is Color:
+		look.outline_color = data["outline_color"]
+	if data.get("frames") is int:
+		look.frames = data["frames"]
 	return look

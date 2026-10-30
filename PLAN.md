@@ -13,7 +13,13 @@ Première version : import du pack, CcSprite, écran de création, fusion
 - [x] Onglet Characters dans l'éditeur, zoom de la scène, bouton Save
       (2026-10-30). À essayer à la main : Rename, Delete, Inspector.
 
+- [x] Presets du pack (15), contour, réduction d'images (2026-10-30).
+      À vérifier sur mobile : coût du contour (un rendu de plus par
+      personnage).
+
 ## Décisions prises
+- 2026-10-30 : contour par CanvasGroup seulement quand il est actif ;
+  réduction d'images à l'affichage (même durée), pas dans les planches.
 - 2026-10-30 : onglet générique (toute ressource avec « look ») ; les
   stats restent dans l'Inspector de Godot plutôt qu'un formulaire maison.
 - 2026-10-30 : planches recadrées et serrées à l'import (511 -> 106 Mo,
@@ -25,5 +31,5 @@ Première version : import du pack, CcSprite, écran de création, fusion
   pas celle du pack Unity.
 
 ## Questions ouvertes
-- Outils d'export du pack Unity (contour, réduction d'images, 64 px) non
-  repris : à faire seulement si besoin.
+- Outils d'export du pack Unity encore non repris (contour en dégradé,
+  halo, 64 px) : à faire seulement si besoin.

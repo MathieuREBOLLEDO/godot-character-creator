@@ -12,8 +12,10 @@ extends RefCounted
 ##   var baked: CcCatalog = await CcBaker.bake(look, catalog, self, "user://characters/hero")
 ##   sprite.catalog = baked
 ##   sprite.look = CcBaker.baked_look(look)
-## La taille (look.size) n'est pas cuite dans la planche : baked_look() la
-## reprend et CcSprite l'applique à l'affichage.
+## La taille, le contour et la réduction d'images ne sont pas cuits dans la
+## planche : baked_look() les reprend et CcSprite les applique à
+## l'affichage. L'ombre est cuite avec le reste : le contour d'un
+## personnage fusionné l'entoure aussi (fusionner sans ombre si besoin).
 
 const PART: String = "baked"
 const ATLAS_WIDTH: int = 1024
@@ -130,4 +132,5 @@ static func baked_look(source: CcLook = null) -> CcLook:
 	look.parts = {"body": PART}
 	if source != null:
 		look.size = source.size
+		look.copy_style(source)
 	return look

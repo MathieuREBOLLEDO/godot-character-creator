@@ -35,7 +35,8 @@ de tâche, mettre PLAN.md à jour).
 
 ## Dossiers
 - plugin.gd : réglage character_creator/catalog_path, menu d'import.
-- cc_catalog.gd, cc_look.gd, cc_sprite.gd, cc_baker.gd : le runtime.
+- cc_catalog.gd, cc_look.gd, cc_sprite.gd, cc_baker.gd : le runtime ;
+  cc_outline.gdshader : contour (CanvasGroup de CcSprite).
 - importer/ : import du .unitypackage (cc_importer.gd) et ligne de
   commande (import_cli.gd).
 - creator/ : écran de création (cc_creator ; embedded = intégré à

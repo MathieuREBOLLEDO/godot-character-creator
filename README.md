@@ -89,6 +89,26 @@ nœud) n'est pas entière, les pixels sont un peu inégaux (à l'échelle 2,
 seuls 50, 100 et 150 % restent parfaitement nets). La fusion (CcBaker) ne
 cuit pas la taille : `baked_look(look)` la reprend.
 
+Style (sous la taille) :
+- **Contour** : 0 à 3 pixels du pack, couleur au choix, autour de tout le
+  personnage sauf l'ombre (`CcLook.outline_width`, `outline_color`). Rendu
+  par un `CanvasGroup` avec le shader `cc_outline.gdshader`, seulement
+  quand il y a un contour : chaque personnage avec contour coûte un rendu
+  de plus par image (à surveiller sur mobile avec beaucoup d'unités).
+- **Images** : 15, 14, 12, 10, 8, 6 ou 4 images par animation, même durée
+  (`CcLook.frames`, 0 = toutes) : plus saccadé, style rétro, comme la
+  réduction d'images de l'outil Unity.
+
+### Presets du pack
+
+L'import écrit aussi les 15 tenues du pack (Knight, Assassin, Paladin,
+Archer, Skeleton pirate, Frost mage, Barbarian, Dark lord, Swamp thing,
+Knight 2, Monster, Shaman, Skeleton, Spirit, Fire mage) en `CcLook` dans
+`presets/` à côté du catalogue (lues dans `GearPresetDatabase.asset`).
+Pour ne refaire que les presets : `--presets-only` en ligne de commande.
+Repris : pièces, couleurs, arme, bouclier, sac, monture. Pas repris :
+l'opacité d'ombre propre à chaque preset (70 % pour tous), l'idle préféré.
+
 ### Onglet Characters (éditeur)
 
 Onglet à côté de 2D, 3D, Script : créer vite des personnages (classes,
@@ -133,8 +153,11 @@ seconde sur PC. Demande une fenêtre (pas en `--headless`).
 ## Limites
 
 - Pas repris de l'outil Unity : export de planches PNG pour d'autres
-  moteurs, contour, réduction du nombre d'images, résolution 64 px. Le
-  catalogue garde les 15 images à 128 px.
+  moteurs, contour en dégradé et halo, résolution 64 px. Le catalogue
+  garde les 15 images à 128 px (la réduction d'images se fait à
+  l'affichage).
+- Personnage fusionné avec contour : l'ombre est cuite dans la planche,
+  donc entourée aussi.
 - La teinte multiplie les couleurs (comme `SpriteRenderer.color` dans
   Unity) : une pièce claire se teinte bien, une pièce sombre peu.
 - La fusion de toutes les animations écrit environ 30 PNG par personnage

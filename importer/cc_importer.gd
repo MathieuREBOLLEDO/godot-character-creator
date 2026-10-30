@@ -20,14 +20,30 @@ const CLIPS_MARK: String = "/Animation Clips/"
 ## Pièce dont les clips donnent les boucles et la liste des animations.
 const REFERENCE_PART: String = "NakedBody"
 const ATLAS_WIDTH: int = 1024
+const PRESETS_FILE: String = "GearPresetDatabase.asset"
+## Emplacements des presets donnés par un Animator : nom Unity -> nôtre.
+const PRESET_ANIMATOR_SLOTS: Dictionary = {
+	"body": "body", "head": "head", "chest": "chest", "legs": "legs",
+	"shoes": "shoes", "hands": "hands", "belt": "belt", "slash": "slash",
+	"effect": "effect",
+}
+## Emplacements donnés par un nom : clé du nom -> [emplacement, clé de la
+## couleur].
+const PRESET_NAMED_SLOTS: Dictionary = {
+	"weaponName": ["weapon", "weaponColor"],
+	"shieldName": ["offhand", "shieldColor"],
+	"backpackName": ["bag", "backpackColor"],
+	"mountName": ["mount", "mountColor"],
+}
 
 ## progress(ratio 0-1, texte) : appelée pendant l'import (peut venir d'un
 ## thread : l'appelant passe par call_deferred s'il touche l'interface).
 var progress: Callable = Callable()
 
 
-## Lance l'import ; renvoie "" ou un message d'erreur.
-func run(source: String, dest: String) -> String:
+## Lance l'import ; renvoie "" ou un message d'erreur. [presets_only] : ne
+## refait que les presets (catalogue déjà importé dans [dest]).
+func run(source: String, dest: String, presets_only: bool = false) -> String:
 	var root: String = source
 	var temp: String = ""
 	if source.get_extension().to_lower() == "unitypackage":
@@ -46,10 +62,18 @@ func run(source: String, dest: String) -> String:
 	_report(0.02, "Reading the package index...")
 	var sheets: Dictionary = {}  # pièce -> {animation: chemin du PNG}
 	var loops: Dictionary = {}   # animation -> bool
+	var controllers: Dictionary = {}  # guid de l'Animator -> pièce
+	var presets_asset: String = ""
 	for guid in DirAccess.get_directories_at(root):
 		var folder: String = root.path_join(guid)
 		var pathname: String = _first_line(folder.path_join("pathname"))
 		var asset: String = folder.path_join("asset")
+		if pathname.ends_with("Controller.controller"):
+			controllers[guid] = pathname.get_file().trim_suffix("Controller.controller")
+			continue
+		if pathname.ends_with(PRESETS_FILE):
+			presets_asset = asset
+			continue
 		if pathname == "" or not FileAccess.file_exists(asset):
 			continue
 		var sheet_at: int = pathname.find(SHEETS_MARK)
@@ -65,6 +89,15 @@ func run(source: String, dest: String) -> String:
 			var anim_name: String = pathname.get_file().trim_suffix("_E.anim")
 			loops[anim_name] = _clip_loops(asset)
 
+	if presets_only:
+		var existing: CcCatalog = load(dest.path_join("catalog.res")) as CcCatalog if ResourceLoader.exists(dest.path_join("catalog.res")) else null
+		if existing == null:
+			return "Import the parts first (no catalog in %s)" % dest
+		var count: int = _import_presets(presets_asset, controllers, existing, dest)
+		if temp != "":
+			_remove_dir(temp)
+		_report(1.0, "Done: %d presets." % count)
+		return ""
 	if not sheets.has(REFERENCE_PART):
 		return "No spritesheets found (is it the Character Creator - Fantasy package?)"
 	var anims: Array = sheets[REFERENCE_PART].keys()
@@ -104,12 +137,77 @@ func run(source: String, dest: String) -> String:
 
 	_report(0.99, "Saving the catalog...")
 	var error: Error = ResourceSaver.save(catalog, dest.path_join("catalog.res"))
+	var preset_count: int = _import_presets(presets_asset, controllers, catalog, dest)
 	if temp != "":
 		_remove_dir(temp)
 	if error != OK:
 		return "Could not save the catalog (%s)" % error_string(error)
-	_report(1.0, "Done: %d parts, %d animations." % [catalog.parts.size(), anims.size()])
+	_report(1.0, "Done: %d parts, %d animations, %d presets." % [catalog.parts.size(), anims.size(), preset_count])
 	return ""
+
+
+# --- Presets du pack ---
+
+# Tenues complètes de GearPresetDatabase.asset (Knight, Assassin...) écrites
+# en CcLook dans [dest]/presets/<nom>.tres ; renvoie leur nombre. Les pièces
+# des emplacements « Animator » sont données par le guid de leur
+# contrôleur (Head12Controller -> Head12) ; arme, bouclier, sac et monture
+# par leur nom. Une pièce absente du catalogue est ignorée.
+func _import_presets(asset: String, controllers: Dictionary, catalog: CcCatalog, dest: String) -> int:
+	if asset == "" or not FileAccess.file_exists(asset):
+		return 0
+	var presets: Array[Dictionary] = []
+	for line in FileAccess.get_file_as_string(asset).split("\n"):
+		var text: String = line.strip_edges()
+		if text.begins_with("- "):
+			presets.append({})
+			text = text.substr(2)
+		if presets.is_empty() or not text.contains(": "):
+			continue
+		presets[-1][text.get_slice(": ", 0)] = text.substr(text.find(": ") + 2)
+	var folder: String = dest.path_join("presets")
+	DirAccess.make_dir_recursive_absolute(folder)
+	var count: int = 0
+	for preset in presets:
+		var look: CcLook = CcLook.new()
+		look.parts["shadow"] = "Shadow"
+		look.colors["shadow"] = Color(1, 1, 1, 0.7)
+		for unity_slot in PRESET_ANIMATOR_SLOTS:
+			if preset.get(unity_slot + "Visible", "1") != "1":
+				continue
+			var guid: String = _guid_of(String(preset.get(unity_slot + "Animator", "")))
+			_preset_part(look, catalog, PRESET_ANIMATOR_SLOTS[unity_slot], String(controllers.get(guid, "")), String(preset.get(unity_slot + "Color", "")))
+		for key in PRESET_NAMED_SLOTS:
+			var slot: String = PRESET_NAMED_SLOTS[key][0]
+			_preset_part(look, catalog, slot, String(preset.get(key, "")), String(preset.get(PRESET_NAMED_SLOTS[key][1], "")))
+		var preset_name: String = String(preset.get("presetName", "preset_%d" % count))
+		if ResourceSaver.save(look, folder.path_join(preset_name.to_snake_case().validate_filename() + ".tres")) == OK:
+			count += 1
+	return count
+
+
+func _preset_part(look: CcLook, catalog: CcCatalog, slot: String, part: String, color_text: String) -> void:
+	if not catalog.parts.has(part) or catalog.parts[part]["slot"] != slot:
+		return
+	look.parts[slot] = part
+	var color: Variant = _unity_color(color_text)
+	if color != null and not (color as Color).is_equal_approx(Color.WHITE):
+		look.colors[slot] = color
+
+
+func _guid_of(reference: String) -> String:
+	var at: int = reference.find("guid: ")
+	return reference.substr(at + 6, 32) if at >= 0 else ""
+
+
+# « {r: 0.9, g: 0.7, b: 0.5, a: 1} » -> Color ; null si illisible.
+func _unity_color(text: String) -> Variant:
+	if not text.begins_with("{r:"):
+		return null
+	var values: Dictionary = {}
+	for pair in text.trim_prefix("{").trim_suffix("}").split(","):
+		values[pair.get_slice(":", 0).strip_edges()] = pair.get_slice(":", 1).strip_edges().to_float()
+	return Color(values.get("r", 1.0), values.get("g", 1.0), values.get("b", 1.0), values.get("a", 1.0))
 
 
 # Recadre chaque case de la planche, range les images dans une planche

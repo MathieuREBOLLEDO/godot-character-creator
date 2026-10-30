@@ -2,7 +2,7 @@ extends SceneTree
 
 ## Import en ligne de commande (même travail que Projet > Outils > Import
 ## Character Creator pack) :
-## godot --headless --path <projet> -s res://addons/character_creator/importer/import_cli.gd -- --source=<.unitypackage ou dossier extrait> [--dest=res://...]
+## godot --headless --path <projet> -s res://addons/character_creator/importer/import_cli.gd -- --source=<.unitypackage ou dossier extrait> [--dest=res://...] [--presets-only]
 ## Sans --dest : le dossier du réglage character_creator/catalog_path.
 
 const Importer = preload("res://addons/character_creator/importer/cc_importer.gd")
@@ -11,12 +11,15 @@ const DEFAULT_CATALOG: String = "res://character_creator/catalog.res"
 
 func _init() -> void:
 	var source: String = ""
+	var presets_only: bool = false
 	var dest: String = String(ProjectSettings.get_setting("character_creator/catalog_path", DEFAULT_CATALOG)).get_base_dir()
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--source="):
 			source = arg.trim_prefix("--source=")
 		elif arg.begins_with("--dest="):
 			dest = arg.trim_prefix("--dest=")
+		elif arg == "--presets-only":
+			presets_only = true
 	if source == "":
 		printerr("Missing --source=<.unitypackage or extracted folder>")
 		quit(1)
@@ -29,7 +32,7 @@ func _init() -> void:
 			last[0] = percent
 			print("%3d %% %s" % [percent, text])
 	var started: int = Time.get_ticks_msec()
-	var error: String = importer.run(source, dest)
+	var error: String = importer.run(source, dest, presets_only)
 	if error != "":
 		printerr(error)
 		quit(1)

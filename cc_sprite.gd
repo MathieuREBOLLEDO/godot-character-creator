@@ -6,9 +6,14 @@ extends Node2D
 ## (CcCatalog.SLOTS, du dessous au dessus), tous sur la même image de la
 ## même animation. L'origine du nœud est aux pieds (CcCatalog.pivot).
 ## Pour un personnage fusionné (CcBaker), catalog = le catalogue fusionné et
-## look = CcBaker.baked_look() : un seul calque.
+## look = CcBaker.baked_look(look) : un seul calque.
+## L'apparence règle aussi la taille, le contour (CanvasGroup + shader
+## cc_outline, autour de tout sauf l'ombre) et la réduction d'images (moins
+## d'images, même durée).
 
 signal animation_finished(anim: String)
+
+const OUTLINE_SHADER: Shader = preload("res://addons/character_creator/cc_outline.gdshader")
 
 @export var catalog: CcCatalog:
 	set(value):
@@ -36,15 +41,19 @@ signal animation_finished(anim: String)
 @export var playing: bool = true
 @export var speed_scale: float = 1.0
 
+## Image des planches affichée (0 à catalog.frame_count - 1).
 var frame: int = 0:
 	set(value):
 		frame = value
 		_refresh()
 
 var _layers: Dictionary = {}  # emplacement -> Sprite2D
+# Calques sauf l'ombre : Node2D, ou CanvasGroup quand il y a un contour.
+var _body: Node2D
 var _time: float = 0.0
 var _finished: bool = false
 var _premult: CanvasItemMaterial = null
+var _outline: ShaderMaterial = null
 
 
 func _init() -> void:
@@ -72,20 +81,35 @@ static func direction_from_vector(vector: Vector2) -> int:
 	return posmod(roundi(vector.angle() / (PI / 4.0)), 8)
 
 
+## Images jouées par animation (réduction d'images de l'apparence).
+func shown_frames() -> int:
+	if catalog == null:
+		return 1
+	var wanted: int = look.frames if look != null else 0
+	return wanted if wanted > 0 and wanted < catalog.frame_count else catalog.frame_count
+
+
 func _process(delta: float) -> void:
+	if _body is CanvasGroup:
+		_update_outline_scale()
 	if not playing or catalog == null or _finished:
 		return
 	_time += delta * speed_scale
-	var index: int = int(_time * catalog.fps)
-	if index >= catalog.frame_count:
+	# Moins d'images, même durée : on avance plus lentement et on saute des
+	# images des planches.
+	var shown: int = shown_frames()
+	var rate: float = catalog.fps * shown / catalog.frame_count
+	var index: int = int(_time * rate)
+	if index >= shown:
 		if catalog.is_loop(animation):
-			_time = fmod(_time, catalog.frame_count / catalog.fps)
-			index %= catalog.frame_count
+			_time = fmod(_time, shown / rate)
+			index %= shown
 		else:
-			index = catalog.frame_count - 1
+			index = shown - 1
 			_finished = true
-	if index != frame:
-		frame = index
+	var source: int = index * catalog.frame_count / shown
+	if source != frame:
+		frame = source
 	if _finished:
 		animation_finished.emit(animation)
 
@@ -93,6 +117,7 @@ func _process(delta: float) -> void:
 func _refresh() -> void:
 	if not is_inside_tree():
 		return
+	_update_body()
 	for slot in CcCatalog.SLOTS:
 		var part: String = look.part(slot) if look != null else ""
 		var data: PackedInt32Array = catalog.frames(part, animation) if catalog != null and part != "" else PackedInt32Array()
@@ -113,19 +138,59 @@ func _refresh() -> void:
 		layer.material = _premultiplied() if catalog.premultiplied else null
 
 
-# Calques créés tous ensemble au premier besoin : l'ordre des enfants
-# internes est l'ordre de dessin.
 func _layer(slot: String) -> Sprite2D:
-	if _layers.is_empty():
-		for each in CcCatalog.SLOTS:
-			var layer: Sprite2D = Sprite2D.new()
-			layer.name = each
-			layer.centered = false
-			layer.region_enabled = true
-			layer.visible = false
-			add_child(layer, false, Node.INTERNAL_MODE_FRONT)
-			_layers[each] = layer
 	return _layers[slot]
+
+
+# Calques créés tous ensemble au premier besoin, dans l'ordre de dessin :
+# l'ombre directement sous le nœud, puis _body avec les autres.
+func _ensure_layers() -> void:
+	if not _layers.is_empty():
+		return
+	for each in CcCatalog.SLOTS:
+		var layer: Sprite2D = Sprite2D.new()
+		layer.name = each
+		layer.centered = false
+		layer.region_enabled = true
+		layer.visible = false
+		_layers[each] = layer
+		if each == "shadow":
+			add_child(layer, false, Node.INTERNAL_MODE_FRONT)
+			_body = Node2D.new()
+			_body.name = "Body"
+			add_child(_body, false, Node.INTERNAL_MODE_FRONT)
+		else:
+			_body.add_child(layer)
+
+
+# _body est un CanvasGroup (avec le shader de contour) seulement quand
+# l'apparence a un contour : sinon, pas de rendu en plus.
+func _update_body() -> void:
+	_ensure_layers()
+	var wants_group: bool = look != null and look.outline_width > 0
+	if (_body is CanvasGroup) != wants_group:
+		var body: Node2D = CanvasGroup.new() if wants_group else Node2D.new()
+		body.name = "Body"
+		add_child(body, false, Node.INTERNAL_MODE_FRONT)
+		for child in _body.get_children():
+			child.reparent(body, false)
+		_body.queue_free()
+		_body = body
+	if wants_group:
+		if _outline == null:
+			_outline = ShaderMaterial.new()
+			_outline.shader = OUTLINE_SHADER
+		_body.material = _outline
+		_outline.set_shader_parameter("outline_color", look.outline_color)
+		_outline.set_shader_parameter("width", look.outline_width)
+		_update_outline_scale()
+
+
+# Pixels d'écran par pixel du pack (échelle globale, caméra comprise).
+func _update_outline_scale() -> void:
+	var pixel: float = absf(get_global_transform_with_canvas().get_scale().x) * (look.size.x if look != null else 1.0)
+	_outline.set_shader_parameter("pixel", pixel)
+	(_body as CanvasGroup).fit_margin = (look.outline_width + 1) * pixel
 
 
 # Matériau des planches fusionnées (un par nœud : une ressource gardée dans

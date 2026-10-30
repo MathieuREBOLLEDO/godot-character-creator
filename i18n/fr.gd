@@ -54,6 +54,12 @@ const TEXTS: Dictionary = {
 	"Custom": "Autre",
 	"Pick any color": "Choisir n'importe quelle couleur",
 
+	"STYLE": "STYLE",
+	"Outline": "Contour",
+	"Outline around the whole character (not the shadow)": "Contour autour de tout le personnage (pas de l'ombre)",
+	"Outline color": "Couleur du contour",
+	"Frames": "Images",
+	"Frames played per animation (same duration): fewer is choppier, retro style": "Images jouées par animation (même durée) : moins d'images, plus saccadé, style rétro",
 	"SIZE": "TAILLE",
 	"Back to the pack size": "Revenir à la taille du pack",
 	"Height": "Hauteur",

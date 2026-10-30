@@ -70,6 +70,9 @@ var _swatches: GridContainer
 var _custom_color: ColorPickerButton
 var _height_slider: HSlider
 var _width_slider: HSlider
+var _outline_picker: OptionButton
+var _outline_color: ColorPickerButton
+var _frames_picker: OptionButton
 var _anim_picker: OptionButton
 var _direction_label: Label
 var _play_button: Button
@@ -310,6 +313,36 @@ func _build_body() -> Control:
 	right_box.add_child(size_head)
 	_height_slider = _size_row(right_box, T.t("Height"), 1)
 	_width_slider = _size_row(right_box, T.t("Width"), 0)
+	# Style : contour et réduction d'images (comme l'outil Unity du pack).
+	right_box.add_child(Theme_.label(T.t("STYLE"), Theme_.KICKER))
+	var outline_row: HBoxContainer = _caption_row(right_box, T.t("Outline"))
+	_outline_picker = OptionButton.new()
+	_outline_picker.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_outline_picker.add_theme_font_override("font", Theme_.font(&"mono"))
+	_outline_picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_outline_picker.tooltip_text = T.t("Outline around the whole character (not the shadow)")
+	_outline_picker.add_item(T.t("None"), 0)
+	for width in range(1, CcLook.OUTLINE_MAX + 1):
+		_outline_picker.add_item("%d px" % width, width)
+	_outline_picker.item_selected.connect(func(index: int) -> void: _look.outline_width = _outline_picker.get_item_id(index))
+	outline_row.add_child(_outline_picker)
+	_outline_color = ColorPickerButton.new()
+	_outline_color.custom_minimum_size = Vector2(48, 28)
+	_outline_color.tooltip_text = T.t("Outline color")
+	_outline_color.color_changed.connect(func(value: Color) -> void: _look.outline_color = value)
+	outline_row.add_child(_outline_color)
+	var frames_row: HBoxContainer = _caption_row(right_box, T.t("Frames"))
+	_frames_picker = OptionButton.new()
+	_frames_picker.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_frames_picker.add_theme_font_override("font", Theme_.font(&"mono"))
+	_frames_picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_frames_picker.tooltip_text = T.t("Frames played per animation (same duration): fewer is choppier, retro style")
+	for count in CcLook.FRAME_CHOICES:
+		_frames_picker.add_item("%d" % count, count)
+	_frames_picker.item_selected.connect(func(index: int) -> void:
+		var count: int = _frames_picker.get_item_id(index)
+		_look.frames = 0 if count >= CcLook.FRAME_CHOICES[0] else count)
+	frames_row.add_child(_frames_picker)
 	body.add_child(right)
 	return body
 
@@ -482,7 +515,29 @@ func _size_row(parent: Container, caption: String, axis: int) -> HSlider:
 	return slider
 
 
+func _caption_row(parent: Container, caption: String) -> HBoxContainer:
+	var row: HBoxContainer = HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	var label: Label = Theme_.label(caption, Theme_.DIM)
+	label.custom_minimum_size.x = 64
+	row.add_child(label)
+	parent.add_child(row)
+	return row
+
+
+func _refresh_style() -> void:
+	if _outline_picker == null:
+		return
+	_outline_picker.select(_outline_picker.get_item_index(_look.outline_width))
+	_outline_color.color = _look.outline_color
+	_outline_color.disabled = _look.outline_width == 0
+	var count: int = _look.frames if _look.frames > 0 else CcLook.FRAME_CHOICES[0]
+	var index: int = _frames_picker.get_item_index(count)
+	_frames_picker.select(index if index >= 0 else 0)
+
+
 func _refresh_size() -> void:
+	_refresh_style()
 	if _height_slider == null:
 		return
 	_height_slider.set_value_no_signal(_look.size.y)
@@ -557,6 +612,7 @@ func _reset() -> void:
 	var fresh: CcLook = CcLook.default_look()
 	_look.parts = fresh.parts
 	_look.colors = fresh.colors
+	_look.copy_style(fresh)
 	_look.size = Vector2.ONE
 	_select_slot(_slot)
 	_stage.pop()
